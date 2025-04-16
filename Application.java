@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -6,18 +5,15 @@ public class Application {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        List<Customer> customers = new ArrayList<>();
-        List<Technician> technicians = new ArrayList<>();
-        List<Appointment> appointments = new ArrayList<>();
-
         while (true) {
             System.out.println("\nMenu:");
             System.out.println("1. Add Customer");
             System.out.println("2. Add Technician");
             System.out.println("3. Add Car to Customer");
-            System.out.println("4. Create Appointment");
-            System.out.println("5. View Appointments");
-            System.out.println("6. Exit");
+            System.out.println("4. Add Service to Technician");
+            System.out.println("5. Create Appointment");
+            System.out.println("6. View Appointments");
+            System.out.println("7. Exit");
             System.out.print("Enter your choice: ");
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
@@ -32,11 +28,10 @@ public class Application {
                     String customerPhone = scanner.nextLine();
 
                     Customer customer = new Customer();
-                    customer.setId(customers.size() + 1); // Auto-generate ID
                     customer.setName(customerName);
                     customer.setPhoneNumber(customerPhone);
 
-                    customers.add(customer);
+                    DAOManager.CustomerDAO.addCustomer(customer);
                     System.out.println("Customer added successfully!");
                     break;
 
@@ -45,36 +40,16 @@ public class Application {
                     System.out.println("Enter Technician Name:");
                     String technicianName = scanner.nextLine();
 
-                    // Predefined services
-                    String[] services = {"Oil Change", "Tire Rotation", "Brake Inspection", "Engine Diagnostics"};
-
-                    // Display services for selection
-                    System.out.println("Select Services the Technician Can Perform (comma-separated):");
-                    for (int i = 0; i < services.length; i++) {
-                        System.out.println((i + 1) + ". " + services[i]);
-                    }
-                    String[] serviceChoices = scanner.nextLine().split(",");
-
                     Technician technician = new Technician();
-                    technician.setId(technicians.size() + 1); // Auto-generate ID
                     technician.setName(technicianName);
 
-                    // Add selected services to the technician
-                    for (String serviceChoice : serviceChoices) {
-                        int serviceIndex = Integer.parseInt(serviceChoice.trim()) - 1;
-                        if (serviceIndex >= 0 && serviceIndex < services.length) {
-                            technician.addService(services[serviceIndex]);
-                        } else {
-                            System.out.println("Invalid service choice: " + serviceChoice);
-                        }
-                    }
-
-                    technicians.add(technician);
+                    DAOManager.TechnicianDAO.addTechnician(technician);
                     System.out.println("Technician added successfully!");
                     break;
 
                 case 3:
                     // Add Car to Customer
+                    List<Customer> customers = DAOManager.CustomerDAO.getAllCustomers();
                     if (customers.isEmpty()) {
                         System.out.println("No customers available. Add a customer first.");
                         break;
@@ -86,6 +61,7 @@ public class Application {
                     }
                     int customerId = scanner.nextInt();
                     scanner.nextLine(); // Consume newline
+
                     Customer selectedCustomer = customers.stream()
                             .filter(c -> c.getId() == customerId)
                             .findFirst()
@@ -102,17 +78,54 @@ public class Application {
                     System.out.println("Enter Car Model:");
                     String carModel = scanner.nextLine();
 
+                    System.out.println("Enter License Plate:");
+                    String licensePlate = scanner.nextLine();
+
                     Car car = new Car();
-                    car.setId(selectedCustomer.getCars().size() + 1); // Auto-generate ID for the car
                     car.setMake(carMake);
                     car.setModel(carModel);
+                    car.setLicensePlate(licensePlate);
 
-                    selectedCustomer.addCar(car);
+                    DAOManager.CarDAO.addCar(car, selectedCustomer.getId());
                     System.out.println("Car added successfully to customer: " + selectedCustomer.getName());
                     break;
 
                 case 4:
+                    // Add Service to Technician
+                    List<Technician> technicians = DAOManager.TechnicianDAO.getAllTechnicians();
+                    if (technicians.isEmpty()) {
+                        System.out.println("No technicians available. Add a technician first.");
+                        break;
+                    }
+
+                    System.out.println("Select a Technician:");
+                    for (Technician t : technicians) {
+                        System.out.println(t.getId() + ". " + t.getName());
+                    }
+                    int technicianId = scanner.nextInt();
+                    scanner.nextLine(); // Consume newline
+
+                    Technician selectedTechnician = technicians.stream()
+                            .filter(t -> t.getId() == technicianId)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (selectedTechnician == null) {
+                        System.out.println("Invalid technician ID!");
+                        break;
+                    }
+
+                    System.out.println("Enter Service Name:");
+                    String serviceName = scanner.nextLine();
+
+                    DAOManager.ServiceDAO.addService(technicianId, serviceName);
+                    System.out.println("Service added successfully to technician: " + selectedTechnician.getName());
+                    break;
+
+                case 5:
                     // Create Appointment
+                    customers = DAOManager.CustomerDAO.getAllCustomers();
+                    technicians = DAOManager.TechnicianDAO.getAllTechnicians();
                     if (customers.isEmpty() || technicians.isEmpty()) {
                         System.out.println("You need to add customers and technicians first!");
                         break;
@@ -125,6 +138,7 @@ public class Application {
                     }
                     customerId = scanner.nextInt();
                     scanner.nextLine(); // Consume newline
+
                     selectedCustomer = customers.stream()
                             .filter(c -> c.getId() == customerId)
                             .findFirst()
@@ -136,13 +150,19 @@ public class Application {
                     }
 
                     // Select Car
+                    List<Car> cars = DAOManager.CarDAO.getCarsByCustomerId(selectedCustomer.getId());
+                    if (cars.isEmpty()) {
+                        System.out.println("No cars available for this customer. Add a car first.");
+                        break;
+                    }
+
                     System.out.println("Select a Car:");
-                    List<Car> cars = selectedCustomer.getCars();
                     for (Car c : cars) {
-                        System.out.println(c.getId() + ". " + c.getMake() + " " + c.getModel());
+                        System.out.println(c.getId() + ". " + c.getMake() + " " + c.getModel() + " (" + c.getLicensePlate() + ")");
                     }
                     int carId = scanner.nextInt();
                     scanner.nextLine(); // Consume newline
+
                     Car selectedCar = cars.stream()
                             .filter(c -> c.getId() == carId)
                             .findFirst()
@@ -158,9 +178,10 @@ public class Application {
                     for (Technician t : technicians) {
                         System.out.println(t.getId() + ". " + t.getName());
                     }
-                    int technicianId = scanner.nextInt();
+                    technicianId = scanner.nextInt();
                     scanner.nextLine(); // Consume newline
-                    Technician selectedTechnician = technicians.stream()
+
+                    selectedTechnician = technicians.stream()
                             .filter(t -> t.getId() == technicianId)
                             .findFirst()
                             .orElse(null);
@@ -170,6 +191,26 @@ public class Application {
                         break;
                     }
 
+                    // Select Service
+                    List<String> services = DAOManager.ServiceDAO.getServicesByTechnicianId(selectedTechnician.getId());
+                    if (services.isEmpty()) {
+                        System.out.println("No services available for this technician. Add a service first.");
+                        break;
+                    }
+
+                    System.out.println("Select a Service:");
+                    for (int i = 0; i < services.size(); i++) {
+                        System.out.println((i + 1) + ". " + services.get(i));
+                    }
+                    int serviceIndex = scanner.nextInt() - 1;
+                    scanner.nextLine(); // Consume newline
+
+                    if (serviceIndex < 0 || serviceIndex >= services.size()) {
+                        System.out.println("Invalid service selection!");
+                        break;
+                    }
+                    serviceName = services.get(serviceIndex);
+
                     // Enter Appointment Time and Day
                     System.out.println("Enter Appointment Day:");
                     String day = scanner.nextLine();
@@ -178,36 +219,40 @@ public class Application {
                     String time = scanner.nextLine();
 
                     // Create Appointment
-                    Appointment appointment = new Appointment();
-                    appointment.setId(appointments.size() + 1); // Auto-generate ID
-                    appointment.setCustomer(selectedCustomer);
-                    appointment.setCar(selectedCar);
-                    appointment.setTechnician(selectedTechnician);
-                    appointment.setDay(day);
-                    appointment.setTime(time);
+                    int serviceId = DAOManager.ServiceDAO.getServiceId(selectedTechnician.getId(), serviceName);
 
-                    appointments.add(appointment);
+                    Appointment appointment = new Appointment();
+                    appointment.setCustomerId(selectedCustomer.getId());
+                    appointment.setCarId(selectedCar.getId());
+                    appointment.setTechnicianId(selectedTechnician.getId());
+                    appointment.setServiceId(serviceId);
+                    appointment.setAppointmentDay(day);
+                    appointment.setAppointmentTime(time);
+
+                    DAOManager.AppointmentDAO.addAppointment(appointment);
                     System.out.println("Appointment created successfully!");
                     break;
 
-                case 5:
+                case 6:
                     // View Appointments
+                    List<Appointment> appointments = DAOManager.AppointmentDAO.getAllAppointments();
                     if (appointments.isEmpty()) {
                         System.out.println("No appointments found!");
                     } else {
                         for (Appointment a : appointments) {
                             System.out.println("Appointment ID: " + a.getId());
-                            System.out.println("Customer: " + a.getCustomer().getName());
-                            System.out.println("Car: " + a.getCar().getMake() + " " + a.getCar().getModel());
-                            System.out.println("Technician: " + a.getTechnician().getName());
-                            System.out.println("Day: " + a.getDay());
-                            System.out.println("Time: " + a.getTime());
+                            System.out.println("Customer: " + a.getCustomerName());
+                            System.out.println("Car: " + a.getCarMake() + " " + a.getCarModel() + " (" + a.getLicensePlate() + ")");
+                            System.out.println("Technician: " + a.getTechnicianName());
+                            System.out.println("Service: " + a.getServiceName());
+                            System.out.println("Day: " + a.getAppointmentDay());
+                            System.out.println("Time: " + a.getAppointmentTime());
                             System.out.println("-------------------------");
                         }
                     }
                     break;
 
-                case 6:
+                case 7:
                     // Exit
                     System.out.println("Exiting...");
                     scanner.close();

@@ -112,38 +112,7 @@ class Technician {
     }
 }
 
-class Service {
-    private int id;
-    private int technicianId;
-    private String serviceName;
-
-    // Getters and Setters
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public int getTechnicianId() {
-        return technicianId;
-    }
-
-    public void setTechnicianId(int technicianId) {
-        this.technicianId = technicianId;
-    }
-
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public void setServiceName(String serviceName) {
-        this.serviceName = serviceName;
-    }
-}
-
-class Appointment {
+public class Appointment {
     private int id;
     private int customerId;
     private int carId;
